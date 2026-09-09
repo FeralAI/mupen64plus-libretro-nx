@@ -5,6 +5,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -64,3 +67,17 @@ jobs:
         with:
           name: mupen64plus_next_libretro-linux-aarch64
           path: ./mupen64plus_next_libretro.so
+
+      - name: Publish persistent prerelease
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mupen64plus-next-linux-aarch64-unofficial
+          name: Mupen64Plus-Next Linux ARM64 (Unofficial)
+          prerelease: true
+          make_latest: false
+          overwrite_files: true
+          files: ./mupen64plus_next_libretro.so
+          body: |
+            Automated unofficial build from develop.
+            Commit: ${{ github.sha }}
