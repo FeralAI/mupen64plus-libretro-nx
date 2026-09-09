@@ -40,6 +40,10 @@ ifeq ($(platform),)
    endif
 else ifneq (,$(findstring armv,$(platform)))
    override platform += unix
+else ifneq (,$(findstring aarch64,$(platform)))
+   override platform += unix
+else ifneq (,$(findstring arm64,$(platform)))
+   override platform += unix
 endif
 
 # system platform
@@ -106,6 +110,11 @@ ifneq (,$(findstring unix,$(platform)))
    COREFLAGS += -DOS_LINUX
    ifeq ($(ARCH), x86_64)
       ASFLAGS = -f elf64 -d ELF_TYPE
+   else ifeq ($(ARCH), aarch64)
+      ASFLAGS = -f elf64 -d ELF_TYPE
+   else ifeq ($(ARCH), arm64)
+      ARCH = aarch64
+      ASFLAGS = -f elf64 -d ELF_TYPE
    else
       ASFLAGS = -f elf -d ELF_TYPE
    endif
@@ -130,6 +139,14 @@ ifneq (,$(findstring unix,$(platform)))
       else ifneq (,$(findstring hardfloat,$(platform)))
           CPUFLAGS += -mfloat-abi=hard
       endif
+   else ifneq (,$(findstring aarch64,$(platform)))
+      ARCH = aarch64
+      WITH_DYNAREC = aarch64
+      CPUFLAGS += -march=armv8-a
+   else ifneq (,$(findstring arm64,$(platform)))
+      ARCH = aarch64
+      WITH_DYNAREC = aarch64
+      CPUFLAGS += -march=armv8-a
    endif
 
 # Raspberry Pi
