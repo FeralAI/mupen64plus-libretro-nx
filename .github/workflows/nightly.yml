@@ -54,7 +54,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mv release_artifacts/mupen64plus_next_libretro.so \
-            mupen64plus_next_libretro-linux-aarch64-nightly.so
+            mupen64plus_next_libretro.so
 
           short_sha="${GITHUB_SHA::7}"
           now_utc="$(date -u +'%Y-%m-%d %H:%M UTC')"
@@ -76,11 +76,11 @@ jobs:
               --prerelease
 
             gh release upload nightly \
-              mupen64plus_next_libretro-linux-aarch64-nightly.so \
+              mupen64plus_next_libretro.so \
               --clobber
           else
             gh release create nightly \
-              mupen64plus_next_libretro-linux-aarch64-nightly.so \
+              mupen64plus_next_libretro.so \
               --target "$GITHUB_SHA" \
               --title "Mupen64Plus-Next Linux ARM64 Nightly" \
               --notes-file release_notes.md \
