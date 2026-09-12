@@ -25,16 +25,3 @@ jobs:
           name: mupen64plus_next_libretro-linux-aarch64
           path: ./mupen64plus_next_libretro.so
 
-  update-nightly-prerelease:
-    name: Update Nightly Prerelease
-    needs: build-linux-aarch64
-    runs-on: ubuntu-24.04
-    permissions:
-      actions: write
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    steps:
-      - name: Trigger nightly workflow
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: gh workflow run nightly.yml --ref develop --repo "$GH_REPO"
