@@ -1,0 +1,88 @@
+name: Nightly
+
+on:
+  schedule:
+    # Daily at 03:30 UTC.
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-release
+  cancel-in-progress: true
+
+jobs:
+  build-linux-aarch64:
+    name: Build Nightly Linux (aarch64)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Linux ARM64 core
+        run: bash ./build-linux-aarch64.sh
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mupen64plus_next_libretro-linux-aarch64
+          path: ./mupen64plus_next_libretro.so
+
+  release:
+    name: Update Nightly Release
+    needs: build-linux-aarch64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Linux aarch64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mupen64plus_next_libretro-linux-aarch64
+          path: release_artifacts
+
+      - name: Create or update nightly prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv release_artifacts/mupen64plus_next_libretro.so \
+            mupen64plus_next_libretro-linux-aarch64-nightly.so
+
+          short_sha="${GITHUB_SHA::7}"
+          now_utc="$(date -u +'%Y-%m-%d %H:%M UTC')"
+
+          {
+            echo "Nightly Linux aarch64 build from commit ${short_sha}."
+            echo ""
+            echo "Built at: ${now_utc}"
+            echo ""
+            echo "### Recent commits"
+            git log --format='- %s (`%h`)' --abbrev=7 -20 "${GITHUB_SHA}"
+          } > release_notes.md
+
+          if gh release view nightly >/dev/null 2>&1; then
+            gh release edit nightly \
+              --target "$GITHUB_SHA" \
+              --title "Mupen64Plus-Next Linux ARM64 Nightly" \
+              --notes-file release_notes.md \
+              --prerelease
+
+            gh release upload nightly \
+              mupen64plus_next_libretro-linux-aarch64-nightly.so \
+              --clobber
+          else
+            gh release create nightly \
+              mupen64plus_next_libretro-linux-aarch64-nightly.so \
+              --target "$GITHUB_SHA" \
+              --title "Mupen64Plus-Next Linux ARM64 Nightly" \
+              --notes-file release_notes.md \
+              --prerelease
+          fi

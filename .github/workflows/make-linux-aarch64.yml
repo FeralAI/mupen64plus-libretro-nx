@@ -1,66 +1,23 @@
-name: linux-aarch64
+name: CI
 
 on:
   workflow_dispatch:
   push:
   pull_request:
 
-permissions:
-  contents: write
-
 jobs:
-  build:
+  build-linux-aarch64:
+    name: Build Linux (aarch64)
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install cross compiler and build deps
-        run: |
-          sudo dpkg --add-architecture arm64
-
-          sudo perl -0pi -e 's/^Types: deb$/Types: deb\nArchitectures: amd64/mg' \
-            /etc/apt/sources.list.d/ubuntu.sources
-
-          cat <<'EOF' | sudo tee /etc/apt/sources.list.d/arm64-ports.sources >/dev/null
-          Types: deb
-          URIs: http://ports.ubuntu.com/ubuntu-ports
-          Suites: noble noble-updates noble-security noble-backports
-          Components: main universe multiverse
-          Architectures: arm64
-          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-          EOF
-
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            make \
-            gcc-aarch64-linux-gnu \
-            g++-aarch64-linux-gnu \
-            libc6-dev-arm64-cross \
-            libstdc++-12-dev-arm64-cross \
-            libgl1-mesa-dev libgl1-mesa-dev:arm64 \
-            libgles2-mesa-dev libgles2-mesa-dev:arm64 \
-            libegl1-mesa-dev libegl1-mesa-dev:arm64 \
-            libglvnd-dev libglvnd-dev:arm64 \
-            libx11-dev libx11-dev:arm64
-
       - name: Build Linux ARM64 core
-        env:
-          CC: aarch64-linux-gnu-gcc
-          CXX: aarch64-linux-gnu-g++
-          AR: aarch64-linux-gnu-ar
-          STRINGS: aarch64-linux-gnu-strings
-          ARCH: aarch64
-          platform: linux-aarch64
-          HAVE_PARALLEL_RDP: "1"
-          HAVE_PARALLEL_RSP: "1"
-          HAVE_THR_AL: "1"
-          LLE: "1"
-        run: |
-          make clean
-          make platform=linux-aarch64 ARCH=aarch64 -j"$(nproc)"
+        run: bash ./build-linux-aarch64.sh
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -68,16 +25,15 @@ jobs:
           name: mupen64plus_next_libretro-linux-aarch64
           path: ./mupen64plus_next_libretro.so
 
-      - name: Publish persistent prerelease
-        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: mupen64plus-next-linux-aarch64-unofficial
-          name: Mupen64Plus-Next Linux ARM64 (Unofficial)
-          prerelease: true
-          make_latest: false
-          overwrite_files: true
-          files: ./mupen64plus_next_libretro.so
-          body: |
-            Automated unofficial build from develop.
-            Commit: ${{ github.sha }}
+  update-nightly-prerelease:
+    name: Update Nightly Prerelease
+    needs: build-linux-aarch64
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    steps:
+      - name: Trigger nightly workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run nightly.yml --ref develop

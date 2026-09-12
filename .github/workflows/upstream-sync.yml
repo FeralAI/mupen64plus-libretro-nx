@@ -1,0 +1,70 @@
+name: Upstream Sync
+
+on:
+  schedule:
+    # Daily at 02:45 UTC, ahead of nightly build.
+    - cron: '45 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Merge upstream into develop
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout develop branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: develop
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        env:
+          UPSTREAM_REPO: https://github.com/libretro/mupen64plus-libretro-nx.git
+          UPSTREAM_BRANCH: develop
+        run: |
+          git remote add upstream "$UPSTREAM_REPO" 2>/dev/null || git remote set-url upstream "$UPSTREAM_REPO"
+          git fetch upstream "$UPSTREAM_BRANCH"
+
+      - name: Merge upstream branch
+        env:
+          UPSTREAM_BRANCH: develop
+        run: |
+          set -e
+          before_sha=$(git rev-parse HEAD)
+          if git merge --no-ff --no-edit "upstream/${UPSTREAM_BRANCH}"; then
+            after_sha=$(git rev-parse HEAD)
+            if [ "$before_sha" = "$after_sha" ]; then
+              echo "created_commit=false" >> "$GITHUB_ENV"
+            else
+              echo "created_commit=true" >> "$GITHUB_ENV"
+            fi
+          else
+            echo "::error::Automatic upstream merge failed due to conflicts. Resolve manually."
+            exit 1
+          fi
+
+      - name: Push to develop
+        run: |
+          if [ "${created_commit}" != "true" ]; then
+            echo "No upstream changes to push."
+            exit 0
+          fi
+          git push origin HEAD:develop
+
+      - name: Trigger CI workflow
+        if: env.created_commit == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run make-linux-aarch64.yml --ref develop
