@@ -20,7 +20,7 @@ deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main universe multiv
 deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main universe multiverse
 deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security main universe multiverse
 deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-backports main universe multiverse
-  EOF
+EOF
 
   $SUDO apt-get update
   $SUDO apt-get install -y --no-install-recommends \
